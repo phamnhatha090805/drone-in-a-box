@@ -1,1 +1,18 @@
 docs/private/
+.DS_Store
+
+# Build output and IDE caches, wherever they appear.
+#
+# firmware/drone_box/.gitignore already covers these for that project, but it
+# only applies while that directory is the one checked out. Standing on a
+# branch where the firmware lives under a different name leaves a previous
+# build's output unignored -- which is how a `build/` tree and clangd's index,
+# some 2000 files, once came to be offered up as a commit. These patterns hold
+# whatever the directory is called.
+**/build/
+**/build-host/
+**/.cache/
+**/managed_components/
+sdkconfig
+sdkconfig.old
+compile_commands.json

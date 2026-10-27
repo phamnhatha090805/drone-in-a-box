@@ -447,7 +447,7 @@ establishes credentials. "Pairing", in Matter's vocabulary.
 
 **Dead-man switch** — a control that stops the machine when the operator stops
 actively confirming presence. Named after the train driver's handle. Our version:
-if the app stops polling while the motor runs, the dock stops it.
+if the app stops polling while the actuator is energised, the dock stops it.
 
 **Canonical form** — one agreed way of turning a request into bytes before
 signing, so all four implementations produce identical input. Ours is
@@ -536,4 +536,4 @@ code. Checked October 2026.
 **This project**
 - `docs/architecture/control-interface.md` — how the parts actually fit together
 - `specs/001-secure-control-interface/` — the requirements, plan and tasks
-- `firmware/lift_motor/README.md` — the API contract and every test case
+- `firmware/drone_box/README.md` — the API contract and every test case

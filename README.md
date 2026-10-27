@@ -14,8 +14,8 @@ docs/                      project documentation
   reference/                supplied reference material (mechanical drawings, datasheets)
   private/                  not committed — contracts, agreements, anything non-public
 firmware/                  ESP32-S3 firmware
-  lift_motor/               ESP-IDF project: linear actuator over serial (current)
-  actuator_test/            original Arduino sketch, superseded by lift_motor
+  drone_box/                ESP-IDF project: linear actuator over serial (current)
+  actuator_test/            original Arduino sketch, superseded by drone_box
 ```
 
 ## Documentation
@@ -31,13 +31,13 @@ firmware/                  ESP32-S3 firmware
 
 ## Firmware
 
-Current work is the ESP-IDF project in **[firmware/lift_motor](firmware/lift_motor)**
-— see [its README](firmware/lift_motor/README.md) for wiring, a code walkthrough and
+Current work is the ESP-IDF project in **[firmware/drone_box](firmware/drone_box)**
+— see [its README](firmware/drone_box/README.md) for wiring, a code walkthrough and
 the bench test cases. Target: ESP32-S3, ESP-IDF v6.0.2.
 
 ```bash
 . ~/.espressif/tools/activate_idf_v6.0.2.sh
-cd firmware/lift_motor && idf.py flash monitor
+cd firmware/drone_box && idf.py flash monitor
 ```
 
 The `.ino` sketches are the Arduino originals it was ported from, kept for reference.

@@ -1,3 +1,4 @@
 {
-    "idf.currentSetup": "/Users/vdphan/.espressif/v6.0.2/esp-idf"
+    "idf.currentSetup": "/Users/vdphan/.espressif/v6.0.2/esp-idf",
+    "cmake.sourceDirectory": "/Users/vdphan/GitHub/drone-in-a-box/firmware/drone_box"
 }

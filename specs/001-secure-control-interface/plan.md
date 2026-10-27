@@ -9,7 +9,7 @@ Put a single authorisation gate in front of the command path that already
 exists, then add two independent links that both pass through it. Every command
 — BLE or HTTP — is verified by one `auth` component and dispatched by the
 untouched `controller_handle()`. This is the payoff for the earlier refactor:
-adding two transports changes no motor, positioner or command code.
+adding two transports changes no actuator, positioner or command code.
 
 Authorisation is an **HMAC-SHA256 signature plus a monotonic nonce**, not TLS.
 TLS was ruled out deliberately: mbedTLS costs flash we do not have, handshakes
@@ -31,7 +31,7 @@ hotspot-capable dock.
 
 ```
 BLE (NimBLE GATT) ─┐
-                   ├─► auth_verify() ─► controller_handle() ─► motor / positioner
+                   ├─► auth_verify() ─► controller_handle() ─► actuator / positioner
 HTTP (signed)    ──┘        │                  (unchanged)
                             └─► session_touch()  ─► dead-man watchdog
 ```
@@ -44,7 +44,7 @@ HTTP (signed)    ──┘        │                  (unchanged)
 | `wifi_link/` | no | APSTA, station join with fallback, mDNS `dock.local` |
 | `ble_link/` | no | NimBLE GATT: pairing, provisioning, command, status notify |
 | `webserver/` | no | **changed**: verify before dispatch; serve page only on the AP |
-| `controller/`, `command/`, `motor/`, `positioner/` | — | **unchanged** |
+| `controller/`, `command/`, `actuator/`, `positioner/` | — | **unchanged** |
 
 ## Data model
 

@@ -55,7 +55,7 @@ Ordered. T1 is blocking — do not start T2 until it is answered.
       FR8.
 
 - [x] **T8 — Bench-test Phase 1** ✅ 2026-10-15 (tooling), ⏳ awaiting hardware run
-      `firmware/lift_motor/tools/dock_cli.py` signs requests and has a
+      `firmware/drone_box/tools/dock_cli.py` signs requests and has a
       `selftest` that runs W13–W17 and prints PASS/FAIL. W13–W23 added to the
       firmware README. **Still to run on hardware**: flash with
       `idf.py erase-flash` first (partition layout changed), press `K` for the
@@ -182,7 +182,8 @@ rather than quietly fixed because the plan was wrong, not just incomplete.
 ## Follow-up tasks raised during validation
 
 - [ ] **T21 — Derive the SoftAP password from the device key**
-      Acceptance criterion 5 failed: `WIFI_AP_PASSWORD "liftmotor"` is a
+      Acceptance criterion 5 failed: `BOARD_WIFI_AP_PASSWORD "liftmotor"` in
+      `components/board_config/include/board_config.h` is a
       credential in git, shared by every dock built from this repo. Derive it
       from the device key (first bytes, base32) so each unit differs and
       nothing credential-shaped is tracked. Print it on the console at boot and

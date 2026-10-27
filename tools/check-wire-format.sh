@@ -1,10 +1,16 @@
 #!/usr/bin/env bash
 # Verify that all three implementations of the dock wire format agree.
 #
-#   firmware/lift_motor/components/auth/auth.c     (C, on the dock)
-#   firmware/lift_motor/tools/dock_cli.py          (Python, bench client)
-#   app/wire/.../DockCrypto.kt                     (Kotlin, the app)
+#   firmware/drone_box/components/auth/auth.c     (C, on the dock)
+#   firmware/drone_box/tools/dock_cli.py          (Python, bench client)
+#   <app>/wire/.../DockCrypto.kt                   (Kotlin, the app)
 #   firmware/.../webserver/index.html              (JavaScript, the setup page)
+#
+# The app is its own repository. This looks for its `app/` directory next to
+# this one (../box-app/app) or inside it (./app); set DOCK_APP_ROOT to point
+# somewhere else. Without it, the Kotlin checks skip rather than fail, so a
+# firmware-only checkout still passes -- but then nothing is holding the app
+# to these vectors, which is the whole point, so the skip says so.
 #
 # A mismatch between them does not look like a bug. It looks like a 401, or a
 # button that silently does nothing -- which is exactly how the %2B encoding
@@ -38,14 +44,28 @@ HTTP_VECTOR='4:POST8:/api/cmd3:c=e1:7'
 BLOB_VECTOR='3:BLE14:/ble/provision10:net'          # NUL follows; grep stops there
 FRAME_BYTES='41'                                     # 8 nonce + 32 sig + 1 payload
 
-C_TEST="firmware/lift_motor/test/host/test_auth.c"
-PY_CLI="firmware/lift_motor/tools/dock_cli.py"
-KT_TEST="app/wire/src/commonTest/kotlin/box/dock/DockCryptoTest.kt"
+C_TEST="firmware/drone_box/test/host/test_auth.c"
+PY_CLI="firmware/drone_box/tools/dock_cli.py"
+
+APP_ROOT="${DOCK_APP_ROOT:-}"
+if [ -z "$APP_ROOT" ]; then
+    for candidate in "$ROOT/app" "$ROOT/../box-app/app"; do
+        if [ -d "$candidate/wire" ]; then APP_ROOT=$(cd "$candidate" && pwd); break; fi
+    done
+fi
+KT_TEST="$APP_ROOT/wire/src/commonTest/kotlin/com/dronebox/app/DockCryptoTest.kt"
 
 echo
 echo "Shared vectors pinned in all three suites"
 
-for f in "$C_TEST" "$KT_TEST"; do
+SUITES=("$C_TEST")
+if [ -n "$APP_ROOT" ]; then
+    SUITES+=("$KT_TEST")
+else
+    skip "no app checkout found -- set DOCK_APP_ROOT to check the Kotlin vectors"
+fi
+
+for f in "${SUITES[@]}"; do
     if [ ! -f "$f" ]; then fail "missing $f"; continue; fi
     if grep -qF "$HTTP_VECTOR" "$f"; then
         pass "HTTP canonical pinned in $(basename "$f")"
@@ -59,10 +79,12 @@ for f in "$C_TEST" "$KT_TEST"; do
     fi
 done
 
-if grep -qF "$FRAME_BYTES" "$KT_TEST"; then
-    pass "BLE frame size pinned in DockCryptoTest.kt"
-else
-    fail "BLE frame size $FRAME_BYTES not asserted in DockCryptoTest.kt"
+if [ -n "$APP_ROOT" ] && [ -f "$KT_TEST" ]; then
+    if grep -qF "$FRAME_BYTES" "$KT_TEST"; then
+        pass "BLE frame size pinned in DockCryptoTest.kt"
+    else
+        fail "BLE frame size $FRAME_BYTES not asserted in DockCryptoTest.kt"
+    fi
 fi
 
 # --- 2. Python implementation, checked directly ------------------------------
@@ -95,7 +117,7 @@ fi
 echo
 echo "JavaScript (setup page)"
 
-PAGE="firmware/lift_motor/components/webserver/index.html"
+PAGE="firmware/drone_box/components/webserver/index.html"
 if ! command -v node >/dev/null 2>&1; then
     skip "node not installed; cannot exercise the page's crypto"
 elif [ ! -f "$PAGE" ]; then
@@ -135,7 +157,7 @@ fi
 echo
 echo "C host tests"
 
-FW="$ROOT/firmware/lift_motor"
+FW="$ROOT/firmware/drone_box"
 if [ -x "$FW/build-host/test_auth" ]; then
     if (cd "$FW" && ctest --test-dir build-host --output-on-failure >/dev/null 2>&1); then
         pass "auth + command suites"
@@ -150,14 +172,16 @@ fi
 echo
 echo "Kotlin tests"
 
-if [ -x "$ROOT/app/gradlew" ]; then
-    if (cd "$ROOT/app" && ./gradlew --quiet :wire:jvmTest >/dev/null 2>&1); then
+if [ -z "$APP_ROOT" ]; then
+    skip "no app checkout found -- set DOCK_APP_ROOT to run them"
+elif [ -x "$APP_ROOT/gradlew" ]; then
+    if (cd "$APP_ROOT" && ./gradlew --quiet :wire:jvmTest >/dev/null 2>&1); then
         pass "DockCryptoTest"
     else
-        fail "Kotlin tests failed -- run: cd app && ./gradlew :wire:jvmTest"
+        fail "Kotlin tests failed -- run: cd $APP_ROOT && ./gradlew :wire:jvmTest"
     fi
 else
-    skip "no Gradle wrapper yet. Open app/ in Android Studio and sync, or: gradle wrapper"
+    skip "no Gradle wrapper in $APP_ROOT. Open it in Android Studio and sync, or: gradle wrapper"
 fi
 
 # --- verdict -----------------------------------------------------------------

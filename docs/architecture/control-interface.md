@@ -20,7 +20,7 @@ flowchart TD
     gate["auth_verify()<br/>signature + replay window"]
     ctl["controller_handle()<br/>the one command path"]
     cmd["command_parse()<br/>no hardware · host tested"]
-    hw["motor · positioner"]
+    hw["actuator · positioner"]
 
     app --> http
     app --> ble
@@ -145,9 +145,9 @@ stateDiagram-v2
     [*] --> Disarmed: boot
     Disarmed --> Armed: first authorised message (HTTP or BLE)
     Armed --> Armed: another within 1500 ms
-    Armed --> Stopping: every armed link silent, motor running
+    Armed --> Stopping: every armed link silent, actuator energised
     Stopping --> Disarmed: actuator stopped, STOP logged
-    Armed --> Disarmed: motor idle
+    Armed --> Disarmed: actuator idle
 ```
 
 Lives in `session/`, shared by both transports. **Only an authorised message

@@ -110,8 +110,8 @@ review would make this file untrustworthy.
 `esp_fill_random()` on first boot and lives only in NVS. But:
 
 ```
-firmware/lift_motor/components/wifi_link/include/wifi_link.h:
-    #define WIFI_AP_PASSWORD  "liftmotor"
+firmware/drone_box/components/board_config/include/board_config.h:
+    #define BOARD_WIFI_AP_PASSWORD  "liftmotor"
 ```
 
 **The SoftAP password is a credential in version control**, so every dock built
