@@ -20,6 +20,15 @@ void actuator_hold_raw(char which);
 void actuator_set_slow_decay(bool slow);
 bool actuator_slow_decay(void);
 
+// True when either input is above zero, i.e. the bridge is actually driving.
+//
+// Not actuator_direction() != 's': actuator_hold_raw() leaves the direction
+// reading 's' while it holds one input at full scale, so the direction alone
+// calls a raw hold "stopped". The interlock in `controller` has to be true to
+// the pins, not to the label, or a diagnostic hold and the stepper could run
+// at once -- the one thing the interlock exists to prevent.
+bool actuator_is_driving(void);
+
 char     actuator_direction(void);
 int      actuator_speed_pct(void);
 uint32_t actuator_duty_a(void);

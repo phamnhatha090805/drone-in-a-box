@@ -57,18 +57,31 @@ td:last-child{text-align:right;font-variant-numeric:tabular-nums;color:var(--dim
 
   <h2>Position</h2>
   <div class="row">
-    <button onclick="send('h')">Home &darr;</button>
-    <button onclick="send('-')">&minus; Step</button>
-    <button onclick="send('+')">Step +</button>
-    <button onclick="send('t')">Top &uarr;</button>
+    <button class="act" onclick="send('h')">Home &darr;</button>
+    <button class="act" onclick="send('-')">&minus; Step</button>
+    <button class="act" onclick="send('+')">Step +</button>
+    <button class="act" onclick="send('t')">Top &uarr;</button>
   </div>
 
   <h2>Manual</h2>
   <div class="row">
-    <button onclick="send('r')">&darr; Retract</button>
+    <button class="act" onclick="send('r')">&darr; Retract</button>
     <button class="stop" onclick="send('s')">STOP</button>
-    <button onclick="send('e')">&uarr; Extend</button>
+    <button class="act" onclick="send('e')">&uarr; Extend</button>
   </div>
+
+  <h2>Stepper</h2>
+  <div class="row">
+    <button id="stepCw"  class="primary" onclick="send('c')">&#8635; Clockwise</button>
+    <button id="stepCcw" class="primary" onclick="send('w')">&#8634; Counter</button>
+    <button id="stepOff" onclick="send('f')">Turn off</button>
+  </div>
+  <div class="note">Either button starts the stepper; pressing the other while
+     it runs reverses it where it stands, with no ramp. The stepper and the
+     actuator drive one mechanism from one supply, so only one of them runs at
+     a time &mdash; the dock refuses to start either while the other is
+     energised, and says which one is in the way.
+     <strong>STOP</strong> stops both.</div>
 
   <h2>Speed</h2>
   <div class="row">
@@ -83,6 +96,7 @@ td:last-child{text-align:right;font-variant-numeric:tabular-nums;color:var(--dim
     <tr><td>Direction</td><td id="dir">&mdash;</td></tr>
     <tr><td>Speed</td><td id="speed">&mdash;</td></tr>
     <tr><td>Duty A / B</td><td id="duty">&mdash;</td></tr>
+    <tr><td>Stepper</td><td id="stepper">&mdash;</td></tr>
     <tr><td>Network</td><td id="net">&mdash;</td></tr>
   </table>
 
@@ -367,6 +381,26 @@ function render(s){
   $('dir').textContent={e:'extending',r:'retracting',s:'stopped'}[s.dir]||s.dir;
   $('speed').textContent=s.speed+'%';
   $('duty').textContent=s.dutyA+' / '+s.dutyB;
+  const spin=s.stepperDir==='ccw'?'\u21ba counter-clockwise':'\u21bb clockwise';
+  $('stepper').textContent=s.stepper
+    ? (spin+' \u00b7 '+s.stepperRpm+' rpm \u00b7 '+s.stepperSteps+' steps')
+    : 'off';
+  // Reflect the interlock in the buttons instead of waiting for the operator
+  // to be refused: while one motor runs, the other's start is a refusal.
+  //
+  // Advisory only. The firmware is the authority -- .act is the same set the
+  // dock blocks via command_energises_actuator(), and a client that ignores
+  // this gets the refusal anyway. STOP is never touched, here or anywhere.
+  for(const b of document.querySelectorAll('#app button.act')){ b.disabled=s.stepper; }
+  // The duties, not s.dir: a diagnostic raw hold drives a pin while the
+  // direction still reads 's', which is the same reason the dock itself tests
+  // actuator_is_driving(). Keep the two in step.
+  const busy = s.dutyA!==0 || s.dutyB!==0 || s.moving;
+  // Only the direction it is already turning is greyed out, so the other
+  // button stays live and is how you reverse it.
+  $('stepCw').disabled  = busy || (s.stepper && s.stepperDir==='cw');
+  $('stepCcw').disabled = busy || (s.stepper && s.stepperDir==='ccw');
+  $('stepOff').disabled = !s.stepper;
   if(s.event) say(s.event);
 }
 

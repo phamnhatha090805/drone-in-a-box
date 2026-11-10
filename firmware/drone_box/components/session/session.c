@@ -4,6 +4,7 @@
 #include "esp_err.h"
 #include "esp_timer.h"
 #include "actuator.h"
+#include "stepper_motor.h"
 
 #define TICK_US  (250 * 1000)
 
@@ -35,7 +36,10 @@ static void tick(void *arg)
 {
     (void)arg;
 
-    if (actuator_direction() == 's') {
+    // Both motors, for the same reason: a browser tab closed mid-cycle leaves
+    // whichever one is turning unwatched, and the firmware is the authority on
+    // stopping it. controller_emergency_stop() stops both.
+    if (actuator_direction() == 's' && !stepper_motor_running()) {
         return;                             // nothing is moving
     }
 

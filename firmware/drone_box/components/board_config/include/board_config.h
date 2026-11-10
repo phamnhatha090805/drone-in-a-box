@@ -42,6 +42,38 @@
 #define BOARD_ACTUATOR_PWM_BITS    8
 
 // ===========================================================================
+// Stepper: four-wire driver inputs
+// ===========================================================================
+// Wiring: IN1..IN4 to the driver (ULN2003, or an H-bridge pair), grounds
+// common with the ESP32 and the driver supply. All four are plain GPIO
+// outputs; the phase sequence they are walked through is in stepper_motor.c.
+//
+// GPIO15/16 double as XTAL_32K_P/N, so they move if a 32 kHz crystal is ever
+// fitted for deep-sleep timekeeping. GPIO19/20 (native USB) and GPIO26-37
+// (flash/PSRAM) are unavailable, which is what pushed the choice up here.
+#define BOARD_STEPPER_IN1          15
+#define BOARD_STEPPER_IN2          16
+#define BOARD_STEPPER_IN3          17
+#define BOARD_STEPPER_IN4          18
+
+// Which way is "clockwise" is not configured here: it is whichever way the
+// phase sequence turns your motor, which depends on the coil wiring and on
+// which end of the shaft you are looking at. If c and w come out swapped,
+// swap one coil pair at the driver rather than editing the sequence.
+//
+// From the motor's nameplate: a 1.8-degree stepper is 200. Full-step only --
+// stepper_motor.c walks a four-phase sequence, so this is whole steps per
+// revolution, not microsteps.
+#define BOARD_STEPPER_STEPS_PER_REV  200
+
+// Rotation speed while the stepper is on. Together with the line above this
+// sets the step interval (60 s / steps / rpm), so raising either shortens the
+// timer period: at 200 and 100 that is 3000 us, which is comfortable. Push it
+// far enough and the motor loses torque and then skips steps -- there is no
+// feedback to notice, so increase it only against a motor you can watch.
+#define BOARD_STEPPER_RPM            100
+
+// ===========================================================================
 // Pairing button
 // ===========================================================================
 // GPIO0 is the BOOT button on the ESP32-S3-DevKitC. It is a strapping pin, so

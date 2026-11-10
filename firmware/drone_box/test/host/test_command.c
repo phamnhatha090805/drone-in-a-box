@@ -41,6 +41,9 @@ static void test_parse_levels_and_modes(void)
     assert_cmd('d', CMD_DECAY_TOGGLE,  0);
     assert_cmd('A', CMD_RAW_HOLD,     'A');
     assert_cmd('B', CMD_RAW_HOLD,     'B');
+    assert_cmd('c', CMD_STEPPER,      'c');  // stepper on, clockwise
+    assert_cmd('w', CMD_STEPPER,      'w');  // stepper on, counter-clockwise
+    assert_cmd('f', CMD_STEPPER,      'f');  // stepper off
     assert_cmd('K', CMD_REVEAL_KEY,    0);   // serial-only bench affordance
     assert_cmd('W', CMD_PROVISION,     0);   // serial-only, interactive
     assert_cmd('X', CMD_FORGET_WIFI,   0);
@@ -62,9 +65,76 @@ static void test_parse_ignores_noise(void)
     assert_cmd('\n', CMD_IGNORE, 0);
     assert_cmd(' ',  CMD_IGNORE, 0);
     assert_cmd('z',  CMD_IGNORE, 0);
+    assert_cmd('o',  CMD_IGNORE, 0);        // 'o' is not stepper-on: see command.c
+    assert_cmd('n',  CMD_IGNORE, 0);        // 'n'/'m' were rejected as neighbours
+    assert_cmd('m',  CMD_IGNORE, 0);
     assert_cmd('E',  CMD_IGNORE, 0);        // case matters: 'E' is not 'e'
     assert_cmd(0x00, CMD_IGNORE, 0);
     assert_cmd(0xFF, CMD_IGNORE, 0);
+}
+
+// ---------------------------------------------------------------------------
+// U17-U19: the interlock predicates
+//
+// The actuator and the stepper share one mechanism and one supply, so the
+// firmware allows exactly one of them to be energised. These decide which side
+// a command falls on, and `controller` enforces the rule using them -- so this
+// is the one place the rule itself can be checked without a board.
+// ---------------------------------------------------------------------------
+
+static bool energises_actuator(uint8_t c)
+{
+    return command_energises_actuator(command_parse(c));
+}
+
+static bool energises_stepper(uint8_t c)
+{
+    return command_energises_stepper(command_parse(c));
+}
+
+static void test_actuator_commands_are_recognised(void)
+{
+    TEST_ASSERT_TRUE(energises_actuator('e'));      // jog extend
+    TEST_ASSERT_TRUE(energises_actuator('r'));      // jog retract
+    TEST_ASSERT_TRUE(energises_actuator('h'));      // home
+    TEST_ASSERT_TRUE(energises_actuator('t'));      // top
+    TEST_ASSERT_TRUE(energises_actuator('+'));      // one level
+    TEST_ASSERT_TRUE(energises_actuator('-'));
+    TEST_ASSERT_TRUE(energises_actuator('A'));      // raw hold drives a pin
+    TEST_ASSERT_TRUE(energises_actuator('B'));
+}
+
+static void test_stop_and_queries_are_never_blocked(void)
+{
+    // The whole point of the predicate: stop must pass the interlock gate, or
+    // a running stepper would make the actuator's own STOP unreachable.
+    TEST_ASSERT_FALSE(energises_actuator('s'));
+    TEST_ASSERT_FALSE(energises_actuator('p'));     // level query
+    TEST_ASSERT_FALSE(energises_actuator('d'));     // decay toggle, no drive
+    TEST_ASSERT_FALSE(energises_actuator('5'));     // speed only
+    TEST_ASSERT_FALSE(energises_actuator('0'));
+    TEST_ASSERT_FALSE(energises_actuator('K'));     // not about the motor at all
+    TEST_ASSERT_FALSE(energises_actuator('W'));
+    TEST_ASSERT_FALSE(energises_actuator('\r'));    // CMD_IGNORE
+}
+
+static void test_the_two_sides_never_overlap(void)
+{
+    // Both directions are on the stepper's side and no command is on both --
+    // if one ever were, the interlock would deadlock itself, refusing a
+    // command because of the state it would itself create.
+    TEST_ASSERT_TRUE(energises_stepper('c'));       // clockwise
+    TEST_ASSERT_TRUE(energises_stepper('w'));       // counter-clockwise
+    TEST_ASSERT_FALSE(energises_stepper('f'));      // off: always allowed
+    TEST_ASSERT_FALSE(energises_actuator('c'));
+    TEST_ASSERT_FALSE(energises_actuator('w'));
+    TEST_ASSERT_FALSE(energises_actuator('f'));
+
+    for (int c = 0; c < 256; c++) {
+        const command_t cmd = command_parse((uint8_t)c);
+        TEST_ASSERT_FALSE(command_energises_actuator(cmd) &&
+                          command_energises_stepper(cmd));
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -212,6 +282,10 @@ int main(void)
     RUN_TEST(test_parse_levels_and_modes);
     RUN_TEST(test_parse_digits);
     RUN_TEST(test_parse_ignores_noise);
+
+    RUN_TEST(test_actuator_commands_are_recognised);
+    RUN_TEST(test_stop_and_queries_are_never_blocked);
+    RUN_TEST(test_the_two_sides_never_overlap);
 
     RUN_TEST(test_speed_clamp_raises_weak_speeds);
     RUN_TEST(test_speed_clamp_passes_usable_speeds);

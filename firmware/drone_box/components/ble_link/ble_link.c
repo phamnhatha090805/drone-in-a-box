@@ -115,7 +115,7 @@ static void notify_status(void)
     if (s_conn == BLE_HS_CONN_HANDLE_NONE || s_status_handle == 0) {
         return;
     }
-    char json[320];
+    char json[CONTROLLER_STATUS_JSON_MAX];
     controller_status_json(json, sizeof(json));
     struct os_mbuf *om = ble_hs_mbuf_from_flat(json, strlen(json));
     if (om != NULL) {
@@ -151,7 +151,7 @@ static int on_command_write(struct ble_gatt_access_ctxt *ctxt)
 
 static int on_status_read(struct ble_gatt_access_ctxt *ctxt)
 {
-    char json[320];
+    char json[CONTROLLER_STATUS_JSON_MAX];
     controller_status_json(json, sizeof(json));
     return os_mbuf_append(ctxt->om, json, strlen(json)) == 0
                ? 0 : BLE_ATT_ERR_INSUFFICIENT_RES;

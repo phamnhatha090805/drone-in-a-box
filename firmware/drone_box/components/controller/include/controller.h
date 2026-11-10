@@ -9,10 +9,20 @@
 // decides whether it goes to a serial port or into an HTTP response.
 #pragma once
 
+#include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
 
 #define CONTROLLER_REPLY_MAX  96
+
+// Buffer every caller of controller_status_json() must provide.
+//
+// The JSON carries two CONTROLLER_REPLY_MAX strings (levelText and event) on
+// top of about 210 bytes of keys and numbers, so a buffer sized by eye goes
+// from "comfortable" to "silently truncated" the moment a field is added --
+// and a truncated body fails JSON.parse() in the browser, which reads as the
+// dock having gone away. One constant, derived, so adding a field is safe.
+#define CONTROLLER_STATUS_JSON_MAX  (256 + 2 * CONTROLLER_REPLY_MAX)
 
 void controller_init(void);
 
@@ -24,7 +34,7 @@ bool controller_handle(uint8_t c, char *reply, size_t reply_len);
 // Current state as JSON, for the web UI's status poll.
 void controller_status_json(char *out, size_t out_len);
 
-// Stop the actuator now and invalidate dead reckoning. Used by the web client's
+// Stop both motors now and invalidate dead reckoning. Used by the web client's
 // heartbeat watchdog when a browser stops polling mid-move.
 void controller_emergency_stop(const char *why);
 

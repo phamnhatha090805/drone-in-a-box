@@ -36,6 +36,7 @@ typedef enum {
     CMD_LEVEL_SHOW,
     CMD_DECAY_TOGGLE,
     CMD_RAW_HOLD,       // value: 'A' or 'B'
+    CMD_STEPPER,        // value: 'c' on clockwise, 'w' on counter-clockwise, 'f' off
     CMD_REVEAL_KEY,     // 'K' -- bench affordance, see controller_reveal_key()
     CMD_PROVISION,      // 'W' -- interactive, serial only
     CMD_FORGET_WIFI,    // 'X'
@@ -49,6 +50,20 @@ typedef struct {
 
 // One input byte to one command. Never fails; unknown bytes yield CMD_IGNORE.
 command_t command_parse(uint8_t c);
+
+// The interlock, as two predicates.
+//
+// The actuator and the stepper drive one mechanism from one supply, so exactly
+// one of them may be energised at a time. Someone has to decide which side a
+// given command would energise, and that is a reasoning question rather than a
+// hardware one -- so it lives here, under host test, and `controller` enforces
+// it in a single place using these two.
+//
+// "Energise" is the test, not "is about the motor": stop ('s') and the level
+// query ('p') are about the actuator and neither one drives it, so neither is
+// blocked by a running stepper.
+bool command_energises_actuator(command_t cmd);
+bool command_energises_stepper(command_t cmd);
 
 // Raise a speed below the stall floor up to it. Returns the usable percent.
 int speed_clamp(int pct);

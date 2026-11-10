@@ -9,6 +9,16 @@ command_t command_parse(uint8_t c)
         return (command_t){ CMD_LEVEL_END, (int)c };
     case 'A': case 'B':
         return (command_t){ CMD_RAW_HOLD, (int)c };
+    case 'c': case 'w': case 'f':
+        // Clockwise, counter-clockWise, oFf.
+        //
+        // Not 'o' for on: on a console 'o' and '0' are one keystroke apart and
+        // '0' means full speed, which is the last thing a mistyped stepper
+        // command should do. Not 'n'/'m' for the two directions either -- they
+        // are keyboard neighbours, and the typo that reverses a running motor
+        // is the one worth designing out. 'c' and 'w' are three keys apart and
+        // read the way CW/CCW does.
+        return (command_t){ CMD_STEPPER, (int)c };
     case '+':
         return (command_t){ CMD_LEVEL_STEP, +1 };
     case '-':
@@ -34,6 +44,29 @@ command_t command_parse(uint8_t c)
         return (command_t){ CMD_SPEED, (c == '0') ? 100 : (c - '0') * 10 };
     }
     return (command_t){ CMD_IGNORE, 0 };
+}
+
+bool command_energises_actuator(command_t cmd)
+{
+    switch (cmd.kind) {
+    case CMD_DIRECTION:
+        return cmd.value != 's';            // stopping is always allowed
+    case CMD_LEVEL_END:
+    case CMD_LEVEL_STEP:
+    case CMD_RAW_HOLD:                      // holds one input at full scale
+        return true;
+    default:
+        // CMD_SPEED only writes a duty the current direction already implies,
+        // so at a standstill it drives nothing -- and the stepper can only be
+        // running if the actuator was already stopped.
+        return false;
+    }
+}
+
+bool command_energises_stepper(command_t cmd)
+{
+    // Either direction energises it; 'f' is the only CMD_STEPPER that does not.
+    return cmd.kind == CMD_STEPPER && (cmd.value == 'c' || cmd.value == 'w');
 }
 
 int speed_clamp(int pct)

@@ -15,6 +15,7 @@
 #include "mbedtls/base64.h"
 #include "actuator.h"
 #include "secrets.h"
+#include "stepper_motor.h"
 #include "session.h"
 #include "wifi_link.h"
 
@@ -143,7 +144,7 @@ static esp_err_t refuse(httpd_req_t *req, const char *path, const char *why)
 // ---------------------------------------------------------------------------
 static esp_err_t send_status(httpd_req_t *req)
 {
-    char json[320];
+    char json[CONTROLLER_STATUS_JSON_MAX];
     controller_status_json(json, sizeof(json));
     httpd_resp_set_type(req, "application/json");
     httpd_resp_set_hdr(req, "Cache-Control", "no-store");
@@ -310,28 +311,30 @@ static esp_err_t scan_get(httpd_req_t *req)
     session_touch(LINK_HTTP);
 
     // A scan blocks for about WIFI_SCAN_BUDGET_MS, which is longer than
-    // SESSION_TIMEOUT_MS -- so running one while the actuator is energised
-    // would have the dead-man stop the actuator mid-move. Refuse instead.
+    // SESSION_TIMEOUT_MS -- so running one while either motor is energised
+    // would have the dead-man stop it mid-move. Refuse instead.
     //
     // The test is actuator_direction(), not the "moving" field of the status
     // JSON: that one is positioner_moving(), which covers a timed move but not
     // a manual jog, while actuator_direction() is what session.c's own watchdog
     // looks at. Those have to agree, or this endpoint would wave through
-    // exactly the case the watchdog then punishes.
+    // exactly the case the watchdog then punishes -- which is also why the
+    // stepper is tested here: session.c's tick watches it too.
     //
     // It is a point-in-time check, not a lock: a BLE client on its own task
     // could still start a move once the scan is under way. That client pets
     // its own half of the dead-man, so nothing gets stopped out from under it,
     // and the HTTP caller is told the truth about the moment it asked.
-    if (actuator_direction() != 's') {
-        printf("SCAN:  refused -- actuator is moving (direction %c)\n",
-               actuator_direction());
+    if (actuator_direction() != 's' || stepper_motor_running()) {
+        printf("SCAN:  refused -- a motor is running (direction %c, stepper %s)\n",
+               actuator_direction(), stepper_motor_running() ? "on" : "off");
         fflush(stdout);
         httpd_resp_set_status(req, "409 Conflict");
         httpd_resp_set_type(req, "application/json");
         return httpd_resp_sendstr(req,
-            "{\"error\":\"moving\",\"hint\":\"stop the actuator before scanning: a "
-            "scan takes longer than the dead-man timeout and would halt the actuator\"}");
+            "{\"error\":\"moving\",\"hint\":\"stop the motors before scanning: a "
+            "scan takes longer than the dead-man timeout and would halt whichever "
+            "one is running\"}");
     }
 
     // Both buffers go on the heap: the HTTP task's stack is 4 kB and these

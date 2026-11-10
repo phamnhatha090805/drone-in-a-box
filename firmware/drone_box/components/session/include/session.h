@@ -3,7 +3,10 @@
 // Remote control of something that moves needs a client-liveness check: a
 // browser tab gets closed mid-cycle, an app is killed, a phone walks out of
 // range. The firmware is authoritative and never waits for a client to send
-// the stop -- it notices the silence and stops the actuator itself.
+// the stop -- it notices the silence and stops the motors itself.
+//
+// Both of them: the tick watches the actuator and the stepper, because a
+// closed tab leaves whichever one is turning equally unwatched.
 //
 // This lived inside `webserver` while HTTP was the only remote transport.
 // BLE needs exactly the same guarantee, so it moved here before BLE arrives

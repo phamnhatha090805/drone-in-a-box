@@ -121,6 +121,8 @@ void actuator_hold_raw(char which)
 
 void actuator_set_slow_decay(bool slow) { s_slow_decay = slow; apply(); }
 
+bool actuator_is_driving(void) { return s_duty[0] != 0 || s_duty[1] != 0; }
+
 bool        actuator_slow_decay(void) { return s_slow_decay; }
 char        actuator_direction(void)  { return s_direction; }
 int         actuator_speed_pct(void)  { return s_speed_pct; }

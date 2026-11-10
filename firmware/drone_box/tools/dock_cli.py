@@ -160,7 +160,7 @@ def main() -> int:
     p.add_argument("--key", default=os.environ.get("DOCK_KEY", ""),
                    help="64 hex chars; defaults to $DOCK_KEY")
     p.add_argument("--yes", action="store_true",
-                   help="required for anything that can move the actuator")
+                   help="required for anything that can move a motor")
     sub = p.add_subparsers(dest="action", required=True)
     sub.add_parser("nonce")
     sub.add_parser("status")
@@ -209,9 +209,13 @@ def main() -> int:
         print(frame.hex())
         return 0
 
-    moving = args.action == "deadman" or (args.action == "cmd" and args.char not in "sp")
+    # "spf" are the commands that cannot start anything: stop, the level query,
+    # and the stepper's off. 'c' and 'w' are deliberately NOT in the set -- they
+    # start the stepper, so they need --yes like any other command that moves a
+    # motor, and so does the reversal that either one performs while it runs.
+    moving = args.action == "deadman" or (args.action == "cmd" and args.char not in "spf")
     if moving and not args.yes:
-        print("This can move the actuator. Re-run with --yes.", file=sys.stderr)
+        print("This can move a motor. Re-run with --yes.", file=sys.stderr)
         return 2
 
     if args.action == "deadman":

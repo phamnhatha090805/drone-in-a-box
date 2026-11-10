@@ -1,14 +1,19 @@
-// Dock lift firmware: one linear actuator on ZK-5AD channel B (motor 2), ESP32-S3.
-// Wiring: GPIO4 -> D2, GPIO5 -> D3, ESP32 GND -> driver GND.
+// Dock lift firmware: one linear actuator on ZK-5AD channel B (motor 2) plus a
+// four-wire stepper, ESP32-S3. Pins and tunables are in board_config.h.
+// Wiring: GPIO4 -> D2, GPIO5 -> D3, GPIO15-18 -> stepper IN1-IN4, grounds common.
+//
+// One mechanism, one supply, so one motor at a time: the firmware refuses the
+// second while the first is energised. See `controller` and the README.
 //
 // Two clients, one command set:
 //   serial console at 115200
 //   Wi-Fi: join the AP "drone-in-a-box", open http://192.168.4.1/
 //
-//   e = extend, r = retract, s = stop
+//   e = extend, r = retract, s = stop (both motors)
 //   5..9 = speed 50%..90%, 0 = full speed (100%); 1..4 clamp to 50%
 //   h = home retracted (level 0), t = top extended (level 5)
 //   +/- = move one level and stop, p = show level
+//   c = stepper clockwise, w = stepper counter-clockwise, f = stepper off
 //   d = toggle slow/fast decay, A/B = hold one pin high (diagnostic)
 //
 // This file is wiring only. The work lives in the components:
@@ -16,6 +21,7 @@
 //   command/     byte -> command, duty and clamp arithmetic.
 //                No ESP-IDF headers: unit tested on the host.
 //   actuator/    the two PWM pins, LEDC, decay modes.
+//   stepper_motor/ the four stepper GPIOs, stepped by timer, never blocking.
 //   positioner/  dead-reckoned levels, non-blocking timed moves.
 //   controller/  the single command path both clients share.
 //   auth/        request signing and replay window. No ESP-IDF headers.
@@ -44,6 +50,7 @@
 #include "secrets.h"
 #include "serial_io.h"
 #include "session.h"
+#include "stepper_motor.h"
 #include "webserver.h"
 #include "wifi_link.h"
 
@@ -85,6 +92,10 @@ static void banner(void)
     printf("Decay: slow (brake off-phase). Press d to toggle fast/slow.\n");
     printf("Level: h = home retracted, t = top extended, +/- = one step, p = show\n");
     printf("       %d steps of %d ms over a %d ms stroke\n", LEVELS, STEP_MS, TRAVEL_MS);
+    printf("Step:  c = clockwise, w = counter-clockwise, f = off"
+           " -- %d steps/rev at %d rpm\n", STEPPER_STEPS_PER_REV, STEPPER_RPM);
+    printf("       pressing the other direction reverses it where it stands, no ramp\n");
+    printf("       one motor at a time: the dock refuses either while the other runs\n");
     printf("PWM:   %lu Hz on %s\n",
            (unsigned long)actuator_pwm_freq(), serial_io_transport_name());
     printf("Web:   join \"%s\" then open http://192.168.4.1/\n", WIFI_AP_SSID);

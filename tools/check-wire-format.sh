@@ -123,7 +123,12 @@ if ! command -v node >/dev/null 2>&1; then
 elif [ ! -f "$PAGE" ]; then
     fail "missing $PAGE"
 else
-    TMP=$(mktemp -t wirecheck).mjs
+    # mktemp -t needs at least three trailing X's on GNU coreutils; BSD mktemp
+    # (macOS) accepts a bare template and is happy with these too. Without them
+    # this failed on Linux with "too few X's" and was reported as a wire-format
+    # mismatch -- i.e. the script that exists to catch disagreement cried wolf
+    # on every CI run.
+    TMP=$(mktemp -t wirecheck.XXXXXX).mjs
     python3 - "$PAGE" "$TMP" <<'EXTRACT'
 import sys
 src = open(sys.argv[1]).read()
